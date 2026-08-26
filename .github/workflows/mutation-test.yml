@@ -111,11 +111,16 @@ jobs:
         run: |
           mkdir -p mutants
           set +e
-          uv run --no-sync --with mutmut==3.5.0 mutmut run 2>&1 | tee mutmut-run.log
-          echo "mutmut exited ${PIPESTATUS[0]}"
+          # We only need the sandbox tree, not a finished mutation run. Bound it
+          # hard so this step cannot eat the job and skip the census below.
+          timeout 2400 uv run --no-sync --with mutmut==3.5.0 mutmut run 2>&1 | tee mutmut-run.log
+          echo "mutmut/timeout exited ${PIPESTATUS[0]}"
           ls -d mutants/tests mutants/litellm 2>&1
+          echo "sandbox file count: $(find mutants -name '*.py' | wc -l)"
+          exit 0
 
       - name: Census every test that fails inside the sandbox
+        if: always()
         timeout-minutes: 90
         env:
           PYTHONPATH: ${{ github.workspace }}/mutants
